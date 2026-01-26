@@ -14,6 +14,7 @@ const WORKOUTS = [
 
 const TOTAL_SETS = 4;
 const REST_SECONDS = 45; // Rest between sets
+const MOVE_SECONDS = 45; // Moving to next workout
 
 export default function WorkoutPage() {
   const [workoutIndex, setWorkoutIndex] = useState(0);
@@ -23,6 +24,7 @@ export default function WorkoutPage() {
   );
   const [restTime, setRestTime] = useState(0);
   const [isResting, setIsResting] = useState(false);
+  const [isMoving, setIsMoving] = useState(false);
 
   const completeSet = () => {
     if (currentSet > TOTAL_SETS) return;
@@ -35,8 +37,9 @@ export default function WorkoutPage() {
       setIsResting(true);
       setRestTime(REST_SECONDS);
     } else {
-      // last set completed, move to next workout automatically after short delay
-      setTimeout(() => nextWorkout(), 1000);
+      // Last set completed, start moving timer
+      setIsMoving(true);
+      setRestTime(MOVE_SECONDS);
     }
 
     setCurrentSet(currentSet + 1);
@@ -46,6 +49,10 @@ export default function WorkoutPage() {
     if (workoutIndex < WORKOUTS.length - 1) {
       setWorkoutIndex(workoutIndex + 1);
       resetSets();
+    } else {
+      // Finished all workouts
+      setIsMoving(false);
+      setRestTime(0);
     }
   };
 
@@ -53,6 +60,7 @@ export default function WorkoutPage() {
     setCurrentSet(1);
     setCompletedSets(Array(TOTAL_SETS).fill(false));
     setIsResting(false);
+    setIsMoving(false);
     setRestTime(0);
   };
 
@@ -61,15 +69,19 @@ export default function WorkoutPage() {
     resetSets();
   };
 
-  // Rest timer
+  // Timer for Rest or Moving
   useEffect(() => {
-    if (!isResting) return;
+    if (!isResting && !isMoving) return;
 
     const timer = setInterval(() => {
       setRestTime((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          setIsResting(false);
+          if (isResting) setIsResting(false);
+          if (isMoving) {
+            setIsMoving(false);
+            nextWorkout();
+          }
           return 0;
         }
         return prev - 1;
@@ -77,7 +89,13 @@ export default function WorkoutPage() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isResting]);
+  }, [isResting, isMoving]);
+
+  // Full workout progress
+  const totalSets = WORKOUTS.length * TOTAL_SETS;
+  const completedCount =
+    workoutIndex * TOTAL_SETS + completedSets.filter(Boolean).length;
+  const workoutPercent = Math.floor((completedCount / totalSets) * 100);
 
   const workoutComplete =
     workoutIndex === WORKOUTS.length - 1 && currentSet > TOTAL_SETS;
@@ -98,17 +116,30 @@ export default function WorkoutPage() {
           Set {Math.min(currentSet, TOTAL_SETS)} of {TOTAL_SETS}
         </p>
 
-        {/* Progress Bar */}
-        <div className="w-full bg-gray-200 rounded-full h-4 mb-6 overflow-hidden">
+        {/* Current Workout Progress Bar */}
+        <div className="w-full bg-gray-200 rounded-full h-4 mb-4 overflow-hidden">
           <div
             className="h-4 transition-all"
             style={{
-              width: `${(completedSets.filter(Boolean).length / TOTAL_SETS) *
-                100}%`,
+              width: `${
+                (completedSets.filter(Boolean).length / TOTAL_SETS) * 100
+              }%`,
               backgroundColor: "#15803D",
             }}
           ></div>
         </div>
+
+        {/* Full Workout Progress Bar */}
+        <div className="w-full bg-gray-200 rounded-full h-2 mb-6 overflow-hidden">
+          <div
+            className="h-2 transition-all"
+            style={{
+              width: `${workoutPercent}%`,
+              backgroundColor: "#15803D",
+            }}
+          ></div>
+        </div>
+        <p className="text-gray-500 mb-6">{workoutPercent}% Complete</p>
 
         {/* Set Boxes */}
         <div className="grid grid-cols-4 gap-3 mb-6">
@@ -123,10 +154,14 @@ export default function WorkoutPage() {
           ))}
         </div>
 
-        {/* Rest / Complete Set Button */}
+        {/* Rest / Moving / Complete Set Button */}
         {isResting ? (
           <p className="text-[#15803D] font-semibold mb-4">
             Rest: {restTime}s
+          </p>
+        ) : isMoving ? (
+          <p className="text-[#15803D] font-semibold mb-4">
+            Moving to next workout: {restTime}s
           </p>
         ) : currentSet <= TOTAL_SETS ? (
           <button
@@ -135,13 +170,9 @@ export default function WorkoutPage() {
           >
             Complete Set
           </button>
-        ) : workoutIndex < WORKOUTS.length - 1 ? (
-          <p className="text-[#15803D] font-semibold">
-            Moving to next workout...
-          </p>
-        ) : (
+        ) : workoutComplete ? (
           <p className="text-[#15803D] font-semibold">All workouts complete 💪</p>
-        )}
+        ) : null}
 
         {/* Reset Button */}
         <button
@@ -154,3 +185,4 @@ export default function WorkoutPage() {
     </main>
   );
 }
+  
