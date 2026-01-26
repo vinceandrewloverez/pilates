@@ -37,7 +37,6 @@ export default function WorkoutPage() {
       setIsResting(true);
       setRestTime(REST_SECONDS);
     } else {
-      // Last set completed, start moving timer
       setIsMoving(true);
       setRestTime(MOVE_SECONDS);
     }
@@ -50,7 +49,6 @@ export default function WorkoutPage() {
       setWorkoutIndex(workoutIndex + 1);
       resetSets();
     } else {
-      // Finished all workouts
       setIsMoving(false);
       setRestTime(0);
     }
@@ -91,7 +89,7 @@ export default function WorkoutPage() {
     return () => clearInterval(timer);
   }, [isResting, isMoving]);
 
-  // Full workout progress
+  // Overall workout progress
   const totalSets = WORKOUTS.length * TOTAL_SETS;
   const completedCount =
     workoutIndex * TOTAL_SETS + completedSets.filter(Boolean).length;
@@ -116,23 +114,10 @@ export default function WorkoutPage() {
           Set {Math.min(currentSet, TOTAL_SETS)} of {TOTAL_SETS}
         </p>
 
-        {/* Current Workout Progress Bar */}
+        {/* Overall Workout Progress Bar */}
         <div className="w-full bg-gray-200 rounded-full h-4 mb-4 overflow-hidden">
           <div
             className="h-4 transition-all"
-            style={{
-              width: `${
-                (completedSets.filter(Boolean).length / TOTAL_SETS) * 100
-              }%`,
-              backgroundColor: "#15803D",
-            }}
-          ></div>
-        </div>
-
-        {/* Full Workout Progress Bar */}
-        <div className="w-full bg-gray-200 rounded-full h-2 mb-6 overflow-hidden">
-          <div
-            className="h-2 transition-all"
             style={{
               width: `${workoutPercent}%`,
               backgroundColor: "#15803D",
@@ -185,4 +170,3 @@ export default function WorkoutPage() {
     </main>
   );
 }
-  
