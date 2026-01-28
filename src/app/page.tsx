@@ -10,6 +10,7 @@ const WORKOUTS = [
   "DB Around the World",
   "DB Tricep Extension",
   "DB Bicep Curls",
+  "DB Hammer Curls",
 ];
 
 const TOTAL_SETS = 4;
