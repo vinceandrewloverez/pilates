@@ -3,64 +3,47 @@
 import { useState, useEffect } from "react";
 
 const WORKOUTS = [
-  "DB Shoulder Press",
-  "DB Front Raise",
-  "DB Lateral Raise",
-  "DB Serve the Platter",
-  "DB Around the World",
-  "DB Tricep Extension",
-  "DB Bicep Curls",
-  "DB Hammer Curls",
+  "DB Shoulder Press", "DB Front Raise", "DB Lateral Raise",
+  "DB Serve the Platter", "DB Around the World", "DB Tricep Extension",
+  "DB Bicep Curls", "DB Hammer Curls",
+];
+
+const WORKOUT_SHORT = [
+  "Shoulder", "Front", "Lateral", "Platter", "Around", "Tricep", "Bicep", "Hammer",
 ];
 
 const TOTAL_SETS = 4;
 const REST_SECONDS = 45;
 const MOVE_SECONDS = 45;
 
+const Check = ({ size = 16, color = "currentColor" }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5 13l4 4L19 7" />
+  </svg>
+);
+
 export default function WorkoutPage() {
   const [workoutIndex, setWorkoutIndex] = useState(0);
   const [currentSet, setCurrentSet] = useState(1);
-  const [completedSets, setCompletedSets] = useState<boolean[]>(
-    Array(TOTAL_SETS).fill(false)
-  );
-
+  const [completedSets, setCompletedSets] = useState<boolean[]>(Array(TOTAL_SETS).fill(false));
   const [restTime, setRestTime] = useState(0);
   const [isResting, setIsResting] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
-
   const [holdingReset, setHoldingReset] = useState(false);
   const [holdResetTime, setHoldResetTime] = useState(0);
-
   const [holdingSkip, setHoldingSkip] = useState(false);
   const [holdSkipTime, setHoldSkipTime] = useState(0);
-
   const [showDoneCard, setShowDoneCard] = useState(false);
   const [showStats, setShowStats] = useState(false);
 
   const isLastWorkout = workoutIndex === WORKOUTS.length - 1;
   const showTimerPopup = isResting || isMoving;
 
-  const completeSet = () => {
-    if (currentSet > TOTAL_SETS) return;
-
-    const updated = [...completedSets];
-    updated[currentSet - 1] = true;
-    setCompletedSets(updated);
-
-    if (currentSet < TOTAL_SETS) {
-      setIsResting(true);
-      setRestTime(REST_SECONDS);
-    } else {
-      if (isLastWorkout) {
-        setShowDoneCard(true);
-      } else {
-        setIsMoving(true);
-        setRestTime(MOVE_SECONDS);
-      }
-    }
-
-    setCurrentSet(currentSet + 1);
-  };
+  const totalSets = WORKOUTS.length * TOTAL_SETS;
+  const completedCount = workoutIndex * TOTAL_SETS + completedSets.filter(Boolean).length;
+  const workoutPercent = Math.round((completedCount / totalSets) * 100);
+  const resetProgress = Math.min((holdResetTime / 1) * 100, 100);
+  const skipProgress = Math.min((holdSkipTime / 1) * 100, 100);
 
   const resetSets = () => {
     setCurrentSet(1);
@@ -70,288 +53,177 @@ export default function WorkoutPage() {
     setRestTime(0);
   };
 
-  const resetAll = () => {
-    setWorkoutIndex(0);
-    resetSets();
-    setShowDoneCard(false);
-    setShowStats(false);
-  };
+  const resetAll = () => { setWorkoutIndex(0); resetSets(); setShowDoneCard(false); setShowStats(false); };
 
   const nextWorkout = () => {
-    if (!isLastWorkout) {
-      setWorkoutIndex(workoutIndex + 1);
-      resetSets();
-    }
+    if (!isLastWorkout) { setWorkoutIndex((i) => i + 1); resetSets(); }
   };
 
-  // Timer for rest/move
+  const completeSet = () => {
+    if (currentSet > TOTAL_SETS) return;
+    const updated = [...completedSets];
+    updated[currentSet - 1] = true;
+    setCompletedSets(updated);
+    if (currentSet < TOTAL_SETS) { setIsResting(true); setRestTime(REST_SECONDS); }
+    else if (isLastWorkout) { setShowDoneCard(true); }
+    else { setIsMoving(true); setRestTime(MOVE_SECONDS); }
+    setCurrentSet((s) => s + 1);
+  };
+
   useEffect(() => {
     if (!isResting && !isMoving) return;
-
     const timer = setInterval(() => {
       setRestTime((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
           if (isResting) setIsResting(false);
-          if (isMoving) {
-            setIsMoving(false);
-            nextWorkout();
-          }
+          if (isMoving) { setIsMoving(false); nextWorkout(); }
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
-
     return () => clearInterval(timer);
   }, [isResting, isMoving]);
 
-  // Hold to reset
   useEffect(() => {
-    if (!holdingReset) {
-      setHoldResetTime(0);
-      return;
-    }
-
-    const timer = setInterval(() => {
-      setHoldResetTime((prev) => {
-        if (prev >= 1) {
-          clearInterval(timer);
-          resetAll();
-          setHoldingReset(false);
-          return 0;
-        }
-        return prev + 0.1;
-      });
-    }, 100);
-
-    return () => clearInterval(timer);
+    if (!holdingReset) { setHoldResetTime(0); return; }
+    const t = setInterval(() => setHoldResetTime((p) => { if (p >= 1) { clearInterval(t); resetAll(); setHoldingReset(false); return 0; } return p + 0.1; }), 100);
+    return () => clearInterval(t);
   }, [holdingReset]);
 
-  // Hold to skip
   useEffect(() => {
-    if (!holdingSkip || isLastWorkout) {
-      setHoldSkipTime(0);
-      return;
-    }
-
-    const timer = setInterval(() => {
-      setHoldSkipTime((prev) => {
-        if (prev >= 1) {
-          clearInterval(timer);
-          nextWorkout();
-          setHoldingSkip(false);
-          return 0;
-        }
-        return prev + 0.1;
-      });
-    }, 100);
-
-    return () => clearInterval(timer);
+    if (!holdingSkip || isLastWorkout) { setHoldSkipTime(0); return; }
+    const t = setInterval(() => setHoldSkipTime((p) => { if (p >= 1) { clearInterval(t); nextWorkout(); setHoldingSkip(false); return 0; } return p + 0.1; }), 100);
+    return () => clearInterval(t);
   }, [holdingSkip]);
 
-  const totalSets = WORKOUTS.length * TOTAL_SETS;
-  const completedCount =
-    workoutIndex * TOTAL_SETS + completedSets.filter(Boolean).length;
-  const workoutPercent = Math.floor((completedCount / totalSets) * 100);
-
-  const resetProgress = Math.min((holdResetTime / 1) * 100, 100);
-  const skipProgress = Math.min((holdSkipTime / 1) * 100, 100);
+  const modal = "fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6";
+  const card = "w-full max-w-xs bg-white rounded-2xl border border-gray-100 p-7 text-center";
 
   return (
-    <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4 relative">
-      {/* Timer Popup */}
+    <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+
+      {/* Timer overlay */}
       {showTimerPopup && (
-        <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-3xl shadow-xl p-8 w-72 text-center">
-            <p className="text-xl font-bold text-[#15803D] mb-2">
-              {isResting ? "Rest" : "Next Workout"}
+        <div className={modal}>
+          <div className={card}>
+            <p className="text-xs font-medium uppercase tracking-widest text-gray-400 mb-3">
+              {isResting ? "Rest" : "Next up"}
             </p>
-            <p className="text-5xl font-extrabold">{restTime}s</p>
+            <p className="text-7xl font-semibold text-gray-900 leading-none mb-1">{restTime}</p>
+            <p className="text-sm text-gray-400">seconds</p>
           </div>
         </div>
       )}
 
-      {/* Done Card */}
+      {/* Done overlay */}
       {showDoneCard && (
-        <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-3xl p-8 w-72 text-center">
-            <p className="text-2xl font-bold text-[#15803D] mb-2">
-              Workout Complete
-            </p>
-            <p className="text-gray-500 mb-4">Great job today</p>
-            <button
-              onClick={() => {
-                setShowDoneCard(false);
-                setShowStats(true);
-              }}
-              className="w-full py-3 rounded-2xl bg-[#15803D] text-white font-semibold"
-            >
-              View Stats
+        <div className={modal}>
+          <div className={card}>
+            <p className="text-xs font-medium uppercase tracking-widest text-gray-400 mb-3">Complete</p>
+            <p className="text-3xl font-semibold text-gray-900 mb-1">All done</p>
+            <p className="text-sm text-gray-400 mb-6">Great session today.</p>
+            <button onClick={() => { setShowDoneCard(false); setShowStats(true); }} className="w-full py-3 rounded-xl bg-gray-900 text-white text-sm font-medium">
+              View stats
             </button>
           </div>
         </div>
       )}
 
-      {/* Stats Card */}
+      {/* Stats overlay */}
       {showStats && (
-        <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-3xl p-8 w-72 text-center">
-            <p className="text-2xl font-bold mb-4">Session Stats</p>
-            <div className="space-y-2 text-gray-700">
-              <p>Total Workouts: {WORKOUTS.length}</p>
-              <p>Total Sets: {totalSets}</p>
-              <p>Completed Sets: {completedCount}</p>
-              <p className="font-semibold text-[#15803D]">
-                Completion: {workoutPercent}%
-              </p>
+        <div className={modal}>
+          <div className={card}>
+            <p className="text-xs font-medium uppercase tracking-widest text-gray-400 mb-1">Session stats</p>
+            <p className="text-5xl font-semibold text-gray-900 mb-6">{workoutPercent}%</p>
+            <div className="space-y-3 mb-6 text-left">
+              {[["Workouts", WORKOUTS.length], ["Total sets", totalSets], ["Completed", completedCount]].map(([label, val]) => (
+                <div key={label as string} className="flex justify-between text-sm border-b border-gray-100 pb-3">
+                  <span className="text-gray-400">{label}</span>
+                  <span className="text-gray-900 font-medium">{val}</span>
+                </div>
+              ))}
             </div>
-
-            <button
-              onClick={resetAll}
-              className="w-full mt-6 py-3 rounded-2xl border border-gray-300"
-            >
-              Start Again
+            <button onClick={resetAll} className="w-full py-3 rounded-xl border border-gray-200 text-sm text-gray-500">
+              Start again
             </button>
           </div>
         </div>
       )}
 
-      {/* Main Card */}
-      <div className="w-full max-w-sm bg-white rounded-3xl shadow-lg p-6 text-center">
-        {/* Stepper with proper line */}
-        <div className="relative flex items-center justify-between mb-6">
-          {/* Full base line */}
-          <div className="absolute left-5 right-5 top-1/2 h-1 bg-gray-300 rounded-full -z-10"></div>
-          {/* Filled line */}
-          <div
-            className="absolute left-5 top-1/2 h-1 bg-[#15803D] rounded-full -z-10"
-            style={{
-              width: `calc(${(workoutIndex / (WORKOUTS.length - 1)) * 100}% )`,
-            }}
-          ></div>
+      {/* Main card */}
+      <div className="w-full max-w-sm bg-white rounded-2xl border border-gray-100 overflow-hidden">
 
-          {WORKOUTS.map((_, i) => (
-            <div
-              key={i}
-              className={`z-10 h-10 w-10 rounded-full flex items-center justify-center font-bold text-sm border-2 cursor-pointer transition-all duration-200 ${
-                i < workoutIndex
-                  ? "bg-[#15803D] border-[#15803D] text-white"
-                  : i === workoutIndex
-                  ? "bg-[#15803D] border-[#15803D] text-white"
-                  : "bg-white border-gray-300 text-gray-700"
-              }`}
-              onClick={() => setWorkoutIndex(i)}
-            >
-              {i < workoutIndex ? (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={3}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-              ) : (
-                i + 1
-              )}
-            </div>
-          ))}
+        {/* Top section */}
+        <div className="px-5 pt-5 pb-4">
+
+          {/* Header row */}
+          <div className="flex justify-between items-center mb-5">
+            <span className="text-sm text-gray-400">Workout {workoutIndex + 1} of {WORKOUTS.length}</span>
+            <span className="text-xs font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">{workoutPercent}% done</span>
+          </div>
+
+          {/* Title */}
+          <h1 className="text-2xl font-semibold text-gray-900 mb-1">{WORKOUTS[workoutIndex]}</h1>
+          <p className="text-sm text-gray-400 mb-4">Set {Math.min(currentSet, TOTAL_SETS)} of {TOTAL_SETS} · {REST_SECONDS}s rest</p>
+
+          {/* Progress bar */}
+          <div className="h-0.5 bg-gray-100 rounded-full mb-5">
+            <div className="h-0.5 bg-gray-900 rounded-full transition-all duration-300" style={{ width: `${workoutPercent}%` }} />
+          </div>
+
+          {/* Set boxes */}
+          <div className="grid grid-cols-4 gap-2 mb-4">
+            {completedSets.map((done, i) => (
+              <div key={i} className="aspect-square rounded-xl flex items-center justify-center text-sm font-medium transition-all" style={{ background: done ? "#111" : i === currentSet - 1 ? "#f9f9f9" : "#f4f4f4", border: done ? "none" : i === currentSet - 1 ? "1px solid #e0e0e0" : "none", color: done ? "#fff" : i === currentSet - 1 ? "#111" : "#aaa" }}>
+                {done ? <Check size={15} color="#fff" /> : i + 1}
+              </div>
+            ))}
+          </div>
+
+          {/* Complete button */}
+          {!showTimerPopup && currentSet <= TOTAL_SETS && (
+            <button onClick={completeSet} className="w-full py-3.5 rounded-xl bg-gray-900 text-white text-sm font-medium mb-2.5 hover:bg-gray-800 transition-colors active:scale-[0.98]">
+              Complete set
+            </button>
+          )}
+
+          {/* Hold buttons */}
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: "Hold to skip", holding: holdingSkip, progress: skipProgress, color: "rgba(0,0,0,0.04)", disabled: isLastWorkout, onDown: () => setHoldingSkip(true), onUp: () => setHoldingSkip(false) },
+              { label: "Hold to reset", holding: holdingReset, progress: resetProgress, color: "rgba(220,38,38,0.07)", disabled: false, onDown: () => setHoldingReset(true), onUp: () => setHoldingReset(false) },
+            ].map(({ label, holding, progress, color, disabled, onDown, onUp }) => (
+              <button key={label} disabled={disabled} onMouseDown={onDown} onMouseUp={onUp} onMouseLeave={onUp} onTouchStart={onDown} onTouchEnd={onUp} className="relative py-3 rounded-xl border border-gray-100 text-xs text-gray-400 overflow-hidden disabled:opacity-30 transition-colors">
+                {holding && <div className="absolute inset-0 transition-all duration-100" style={{ width: `${progress}%`, background: color }} />}
+                <span className="relative z-10">{label}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
-        <h1 className="text-2xl font-bold text-[#15803D] mb-1">
-          {WORKOUTS[workoutIndex]}
-        </h1>
-        <p className="text-gray-500 mb-4">
-          Workout {workoutIndex + 1} of {WORKOUTS.length}
-        </p>
-
-        <p className="mb-4">
-          Set {Math.min(currentSet, TOTAL_SETS)} of {TOTAL_SETS}
-        </p>
-
-        {/* Sets rectangles */}
-        <div className="flex justify-center gap-3 mb-6">
-          {completedSets.map((done, i) => (
-            <div
-              key={i}
-              className={`h-16 w-16 rounded-2xl flex items-center justify-center font-bold text-lg border-2 transition-all duration-200 ${
-                done
-                  ? "bg-[#15803D] border-[#15803D] text-white"
-                  : "bg-gray-200 border-gray-300 text-gray-700"
-              }`}
-            >
-              {done ? (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-6 w-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={3}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-              ) : (
-                i + 1
-              )}
-            </div>
-          ))}
+        {/* Stepper strip */}
+        <div className="border-t border-gray-100 px-5 py-4 overflow-x-auto">
+          <div className="flex items-end gap-0" style={{ minWidth: "max-content" }}>
+            {WORKOUTS.map((_, i) => (
+              <div key={i} className="flex items-center">
+                <button onClick={() => setWorkoutIndex(i)} className="flex flex-col items-center gap-1.5 group">
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium transition-all" style={{ background: i < workoutIndex ? "#111" : i === workoutIndex ? "#111" : "#f4f4f4", color: i <= workoutIndex ? "#fff" : "#aaa" }}>
+                    {i < workoutIndex ? <Check size={11} color="#fff" /> : i + 1}
+                  </div>
+                  <span className="text-[10px] w-9 text-center leading-tight" style={{ color: i === workoutIndex ? "#111" : "#bbb", fontWeight: i === workoutIndex ? 500 : 400 }}>
+                    {WORKOUT_SHORT[i]}
+                  </span>
+                </button>
+                {i < WORKOUTS.length - 1 && (
+                  <div className="w-6 h-px mb-4 mx-0.5" style={{ background: i < workoutIndex ? "#111" : "#e5e5e5" }} />
+                )}
+              </div>
+            ))}
+          </div>
         </div>
 
-        {!showTimerPopup && currentSet <= TOTAL_SETS && (
-          <button
-            onClick={completeSet}
-            className="w-full py-3 rounded-2xl bg-[#15803D] text-white font-semibold"
-          >
-            Complete Set
-          </button>
-        )}
-
-        <div className="flex gap-3 mt-8">
-          {/* Skip Button */}
-          <button
-            disabled={isLastWorkout}
-            onMouseDown={() => setHoldingSkip(true)}
-            onMouseUp={() => setHoldingSkip(false)}
-            onMouseLeave={() => setHoldingSkip(false)}
-            className="relative flex-1 py-3 rounded-xl border border-gray-300 text-gray-500 disabled:opacity-40 overflow-hidden"
-          >
-            {holdingSkip && (
-              <div
-                className="absolute inset-0 bg-yellow-400/30"
-                style={{ width: `${skipProgress}%` }}
-              />
-            )}
-            <span className="relative z-10">Hold to Skip</span>
-          </button>
-
-          {/* Reset Button */}
-          <button
-            onMouseDown={() => setHoldingReset(true)}
-            onMouseUp={() => setHoldingReset(false)}
-            onMouseLeave={() => setHoldingReset(false)}
-            className="relative flex-1 py-3 rounded-xl border border-gray-300 text-gray-400 overflow-hidden"
-          >
-            {holdingReset && (
-              <div
-                className="absolute inset-0 bg-red-500/20"
-                style={{ width: `${resetProgress}%` }}
-              />
-            )}
-            <span className="relative z-10">Hold to Reset</span>
-          </button>
-        </div>
       </div>
     </main>
   );
